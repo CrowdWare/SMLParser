@@ -1,12 +1,29 @@
 # SMLParser
 
-C++11 SML parser with SAX-style callbacks.
+C++11 Parser fuer SML (SimpleMarkupLanguage) mit SAX-Style Callbacks. Wird in SMLUI und RaidBuilder genutzt.
 
-Features:
-- Elements and properties
-- Scalars: int, float, bool, string
-- Vec2i / Vec3i from comma-separated integers
-- Enum registry per property
+## Features
+- Elemente und Properties
+- Datentypen: int, float, bool, string
+- Vec2i / Vec3i (aus "x,y" bzw. "x,y,z")
+- Enum-Registrierung pro Property
+- Fehler mit Zeilen/Spalten-Info (SmlParseException)
 
-Usage:
-- Add `SMLParser` as a library target (CMake) or compile `src/sml_parser.cpp` with `include/` on your include path.
+## Build
+```sh
+cmake -S . -B build
+cmake --build build
+```
+oder `src/sml_parser.cpp` direkt in dein Projekt einbinden.
+
+## Kurzbeispiel
+```cpp
+sml::SmlSaxParser parser(text);
+MyHandler handler;
+parser.registerEnumValue("icon", "play");
+parser.parse(handler);
+```
+
+## API Einstieg
+- Header: `include/sml_parser.h`
+- Zentral: `sml::SmlSaxParser` + `sml::SmlHandler`
