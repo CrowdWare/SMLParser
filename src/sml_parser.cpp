@@ -21,6 +21,7 @@ PropertyValue PropertyValue::FromInt(int v) {
     PropertyValue pv;
     pv.type = Int;
     pv.int_value = v;
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -28,6 +29,7 @@ PropertyValue PropertyValue::FromFloat(float v) {
     PropertyValue pv;
     pv.type = Float;
     pv.float_value = v;
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -35,6 +37,7 @@ PropertyValue PropertyValue::FromBool(bool v) {
     PropertyValue pv;
     pv.type = Boolean;
     pv.bool_value = v;
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -42,6 +45,7 @@ PropertyValue PropertyValue::FromString(const std::string& v) {
     PropertyValue pv;
     pv.type = String;
     pv.string_value = v;
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -49,6 +53,7 @@ PropertyValue PropertyValue::FromVec2i(int x, int y) {
     PropertyValue pv;
     pv.type = Vec2iType;
     pv.vec2i_value = Vec2i{x, y};
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -56,6 +61,7 @@ PropertyValue PropertyValue::FromVec3i(int x, int y, int z) {
     PropertyValue pv;
     pv.type = Vec3iType;
     pv.vec3i_value = Vec3i{x, y, z};
+    pv.enum_has_value = false;
     return pv;
 }
 
@@ -63,6 +69,17 @@ PropertyValue PropertyValue::FromEnum(const std::string& v) {
     PropertyValue pv;
     pv.type = EnumType;
     pv.string_value = v;
+    pv.enum_value = 0;
+    pv.enum_has_value = false;
+    return pv;
+}
+
+PropertyValue PropertyValue::FromEnum(const std::string& v, int32_t id) {
+    PropertyValue pv;
+    pv.type = EnumType;
+    pv.string_value = v;
+    pv.enum_value = id;
+    pv.enum_has_value = true;
     return pv;
 }
 
@@ -259,6 +276,18 @@ void SmlSaxParser::registerEnumValues(const std::string& property, const std::ve
         set_ref.insert(values[i]);
 }
 
+void SmlSaxParser::registerEnumType(const std::string& type_name, const EnumEntry* entries, uint32_t entry_count) {
+    std::map<std::string, int32_t>& type_map = enum_types_[type_name];
+    for (uint32_t i = 0; i < entry_count; ++i) {
+        if (entries[i].name)
+            type_map[entries[i].name] = entries[i].value;
+    }
+}
+
+void SmlSaxParser::registerEnumProperty(const std::string& property, const std::string& type_name) {
+    enum_properties_[property] = type_name;
+}
+
 void SmlSaxParser::parse(SmlHandler& handler) {
     skipIgnorables();
     while (lookahead_.type != TokenType::Eof) {
@@ -362,6 +391,16 @@ PropertyValue SmlSaxParser::parseValue(const std::string& property) {
     }
     if (lookahead_.type == TokenType::Ident) {
         Token value_token = consume();
+        std::map<std::string, std::string>::const_iterator prop_it = enum_properties_.find(property);
+        if (prop_it != enum_properties_.end()) {
+            std::map<std::string, std::map<std::string, int32_t> >::const_iterator type_it = enum_types_.find(prop_it->second);
+            if (type_it == enum_types_.end())
+                throw SmlParseException("Unknown enum type '" + prop_it->second + "' for property '" + property + "'", value_token.start);
+            std::map<std::string, int32_t>::const_iterator value_it = type_it->second.find(value_token.text);
+            if (value_it == type_it->second.end())
+                throw SmlParseException("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
+            return PropertyValue::FromEnum(value_token.text, value_it->second);
+        }
         if (!isEnumValueAllowed(property, value_token.text)) {
             throw SmlParseException("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
         }

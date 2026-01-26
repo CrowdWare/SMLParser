@@ -2,6 +2,7 @@
 #define SML_PARSER_H
 
 #include <stdexcept>
+#include <cstdint>
 #include <string>
 #include <map>
 #include <set>
@@ -63,6 +64,8 @@ struct PropertyValue {
     std::string string_value;
     Vec2i vec2i_value;
     Vec3i vec3i_value;
+    int32_t enum_value;
+    bool enum_has_value;
 
     static PropertyValue FromInt(int v);
     static PropertyValue FromFloat(float v);
@@ -71,6 +74,7 @@ struct PropertyValue {
     static PropertyValue FromVec2i(int x, int y);
     static PropertyValue FromVec3i(int x, int y, int z);
     static PropertyValue FromEnum(const std::string& v);
+    static PropertyValue FromEnum(const std::string& v, int32_t id);
 };
 
 class SmlHandler {
@@ -103,10 +107,17 @@ private:
 
 class SmlSaxParser {
 public:
+    struct EnumEntry {
+        const char* name;
+        int32_t value;
+    };
+
     explicit SmlSaxParser(const std::string& text);
     void parse(SmlHandler& handler);
     void registerEnumValue(const std::string& property, const std::string& value);
     void registerEnumValues(const std::string& property, const std::vector<std::string>& values);
+    void registerEnumType(const std::string& type_name, const EnumEntry* entries, uint32_t entry_count);
+    void registerEnumProperty(const std::string& property, const std::string& type_name);
 
 private:
     void parseElement(SmlHandler& handler);
@@ -120,6 +131,8 @@ private:
     SmlLexer lexer_;
     Token lookahead_;
     std::map<std::string, std::set<std::string> > enums_;
+    std::map<std::string, std::map<std::string, int32_t> > enum_types_;
+    std::map<std::string, std::string> enum_properties_;
 };
 
 } // namespace sml
