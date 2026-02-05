@@ -22,6 +22,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
+#include <iostream>
 
 namespace sml {
 
@@ -307,6 +308,14 @@ void SmlSaxParser::registerEnumProperty(const std::string& property, const std::
     enum_properties_[property] = type_name;
 }
 
+void SmlSaxParser::warnOnce(const std::string& message, const Span& span) {
+    std::ostringstream key;
+    key << message << "|" << span.line << "|" << span.col;
+    if (warning_cache_.insert(key.str()).second) {
+        std::cerr << "SML Warning: " << FormatMessage(message, span) << std::endl;
+    }
+}
+
 void SmlSaxParser::parse(SmlHandler& handler) {
     skipIgnorables();
     while (lookahead_.type != TokenType::Eof) {
@@ -413,15 +422,20 @@ PropertyValue SmlSaxParser::parseValue(const std::string& property) {
         std::map<std::string, std::string>::const_iterator prop_it = enum_properties_.find(property);
         if (prop_it != enum_properties_.end()) {
             std::map<std::string, std::map<std::string, int32_t> >::const_iterator type_it = enum_types_.find(prop_it->second);
-            if (type_it == enum_types_.end())
-                throw SmlParseException("Unknown enum type '" + prop_it->second + "' for property '" + property + "'", value_token.start);
+            if (type_it == enum_types_.end()) {
+                warnOnce("Unknown enum type '" + prop_it->second + "' for property '" + property + "'", value_token.start);
+                return PropertyValue::FromEnum(value_token.text);
+            }
             std::map<std::string, int32_t>::const_iterator value_it = type_it->second.find(value_token.text);
-            if (value_it == type_it->second.end())
-                throw SmlParseException("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
+            if (value_it == type_it->second.end()) {
+                warnOnce("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
+                return PropertyValue::FromEnum(value_token.text);
+            }
             return PropertyValue::FromEnum(value_token.text, value_it->second);
         }
         if (!isEnumValueAllowed(property, value_token.text)) {
-            throw SmlParseException("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
+            warnOnce("Unknown enum value '" + value_token.text + "' for property '" + property + "'", value_token.start);
+            return PropertyValue::FromEnum(value_token.text);
         }
         return PropertyValue::FromEnum(value_token.text);
     }

@@ -127,12 +127,14 @@ private:
     Token consume();
     void skipIgnorables();
     bool isEnumValueAllowed(const std::string& property, const std::string& value) const;
+    void warnOnce(const std::string& message, const Span& span);
 
     SmlLexer lexer_;
     Token lookahead_;
     std::map<std::string, std::set<std::string> > enums_;
     std::map<std::string, std::map<std::string, int32_t> > enum_types_;
     std::map<std::string, std::string> enum_properties_;
+    std::set<std::string> warning_cache_;
 };
 
 } // namespace sml
